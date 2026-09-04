@@ -1,0 +1,54 @@
+# Nothing here publishes a host port. Telegram is reached by outbound long
+# polling, and whisper/anytype are only reachable inside this compose network.
+
+services:
+  whisper:
+    image: ghcr.io/speaches-ai/speaches:latest-cpu
+    restart: unless-stopped
+    environment:
+      # Measured on 4 vCPU with an 18 s German clip (see README for the table):
+      # turbo 25 s, medium 22 s, small 8 s. Turbo only distils the decoder --
+      # its encoder is still large-v3 sized, which is what costs time on CPU.
+      # Switch to Systran/faster-whisper-small if you want notes back in ~25 s.
+      WHISPER__MODEL: deepdml/faster-whisper-large-v3-turbo-ct2
+      WHISPER__INFERENCE_DEVICE: cpu
+      WHISPER__COMPUTE_TYPE: int8
+      WHISPER__CPU_THREADS: "4"
+      # Unload the model after 10 min idle -- at a few notes a day there is no
+      # reason to hold 2 GB resident.
+      WHISPER__TTL: "600"
+    volumes:
+      - hf-cache:/home/ubuntu/.cache/huggingface/hub
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:8000/v1/models')\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  anytype-cli:
+    build:
+      context: .
+      dockerfile: docker/anytype-cli.Dockerfile
+    restart: unless-stopped
+    volumes:
+      - anytype-data:/data
+
+  quicknotes:
+    build:
+      context: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      QUICKNOTES_DATA_DIR: /data
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - quicknotes-data:/data
+    depends_on:
+      - whisper
+      - anytype-cli
+
+volumes:
+  hf-cache:
+  anytype-data:
+  quicknotes-data:

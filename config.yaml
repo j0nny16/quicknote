@@ -1,0 +1,58 @@
+# QuickNotes wiring. Secrets live in .env -- every *_env field below names an
+# environment variable, never a value.
+
+data_dir: /data
+
+# Below this word count a note keeps its own text as the title and no model is
+# called at all. Above it, Claude writes title + summary and tidies the text.
+threshold_words: 10
+
+max_attempts: 4        # retries before a capture is dead-lettered
+retry_backoff_s: 20    # doubles each attempt
+undo_history: 20       # how many past notes /undo can reach back through
+
+source:
+  type: telegram
+  token_env: TELEGRAM_BOT_TOKEN
+  # Overridden by ALLOWED_USER_IDS in .env. Must not be empty.
+  allowed_user_ids: []
+
+transcriber:
+  # One implementation, three deployments -- swap by changing base_url:
+  #   local   http://whisper:8000/v1        (this compose stack, no API costs)
+  #   groq    https://api.groq.com/openai/v1  + api_key_env: GROQ_API_KEY
+  #   openai  https://api.openai.com/v1       + api_key_env: OPENAI_API_KEY
+  type: openai_compatible
+  base_url: http://whisper:8000/v1
+  model: deepdml/faster-whisper-large-v3-turbo-ct2
+  api_key_env: null
+  language: null       # null = auto-detect (handles the DE/EN mix)
+  timeout_s: 600
+
+enricher:
+  type: anthropic      # or "noop" to run entirely without an LLM
+  model: claude-haiku-4-5
+  api_key_env: ANTHROPIC_API_KEY
+  max_tokens: 2048
+  timeout_s: 120
+  # Off by default: tags cost tokens on every note and most setups never read
+  # them. Turn on if a sink you add actually uses Note.tags.
+  generate_tags: false
+
+sinks:
+  - type: anytype
+    base_url: http://anytype-cli:31012
+    api_version: "2025-11-08"
+    api_key_env: ANYTYPE_API_KEY
+    space_id: ""       # set via ANYTYPE_SPACE_ID in .env
+    type_key: quicknote
+    icon_text: "📝"
+    icon_voice: "🎤"
+    # Optional extras. The note itself needs none of these: the title becomes the
+    # object name, the summary its description, the text its Markdown body.
+    # Run `quicknotes introspect` to see the real property keys of your type.
+    # Nothing needs mapping for a plain note: the title becomes the object name,
+    # the summary its description, the text its Markdown body. Add entries here
+    # only for custom properties -- run `quicknotes introspect` to see the keys.
+    # Leave a "processed"-style checkbox unmapped so new notes stay unticked.
+    property_map: {}
