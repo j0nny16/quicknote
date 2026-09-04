@@ -189,16 +189,25 @@ Where QUIC stalls, anything that fetches from the network dies on a deadline --
 while TCP-based calls (creating objects, listing spaces) keep working, which
 makes it look like a permissions problem rather than a transport one.
 
-`docker/anytype-entrypoint.sh` works around it by stripping the `quic://` entries
-from the node's peer list, leaving only TCP. It re-applies every 15 s because
-heart re-fetches the config from the coordinator. Remove the workaround once the
-upstream fix ships.
+`docker/anytype-entrypoint.sh` works around it in two layers:
+
+1. **Drop outbound QUIC at the firewall** (`udp/5430`, `udp/443`). This is the
+   layer that actually works, because it holds at every instant.
+2. **Strip `quic://` from the node list**, so heart does not waste time dialling
+   addresses that can never answer.
+
+Stripping the config alone is *not* enough: heart re-fetches the node list from
+the coordinator while logging in, so there is a window where QUIC is back before
+the next strip — and the transport choice is made inside that window. The
+firewall rule closes it. This is why the service needs `cap_add: NET_ADMIN`; it
+is used for nothing else. Remove both layers once the upstream fix ships.
 
 To confirm this is what you are hitting: the node has healthy TCP connections
 (`cat /proc/net/tcp` inside the container shows established sessions to
-`51.77.x` / `5.39.x`) and the invite is fetchable over HTTPS
-(`curl https://invite.any.coop/<cid>` returns ~3 KB), yet heart logs *nothing at
-all* during the failing join.
+`51.77.x` / `5.39.x`), object creation through the REST API works, and the invite
+is fetchable over HTTPS (`curl https://invite.any.coop/<cid>` returns ~3 KB) —
+yet heart logs *nothing at all* during the failing join. Working TCP alongside a
+silent, timing-out fetch is the signature.
 
 ## Development
 

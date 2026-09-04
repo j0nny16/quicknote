@@ -31,6 +31,10 @@ services:
       context: .
       dockerfile: docker/anytype-cli.Dockerfile
     restart: unless-stopped
+    # Needed only to drop outbound QUIC inside this container -- see
+    # docker/anytype-entrypoint.sh and anyproto/anytype-cli#59.
+    cap_add:
+      - NET_ADMIN
     volumes:
       - anytype-data:/data
 
