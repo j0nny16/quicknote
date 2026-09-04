@@ -90,3 +90,13 @@ def test_tag_generation_is_off_by_default(tmp_path):
 def test_tag_generation_can_be_enabled(tmp_path):
     cfg = load_config(write(tmp_path, MINIMAL + "enricher:\n  generate_tags: true\n"))
     assert cfg.enricher.generate_tags is True
+
+
+def test_note_body_defaults_to_summary_only(tmp_path):
+    cfg = load_config(write(tmp_path, MINIMAL))
+    assert cfg.note_body == "summary"
+
+
+def test_note_body_rejects_unknown_modes(tmp_path):
+    with pytest.raises(ConfigError):
+        load_config(write(tmp_path, MINIMAL + "note_body: verbose\n"))

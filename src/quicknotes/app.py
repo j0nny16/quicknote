@@ -96,6 +96,7 @@ class App:
             enricher=self.enricher,
             sinks=self.sinks,
             threshold_words=cfg.threshold_words,
+            note_body=cfg.note_body,
         )
         self.source = TelegramSource(
             cfg.source.token(),

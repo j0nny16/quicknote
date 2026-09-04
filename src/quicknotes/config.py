@@ -107,6 +107,13 @@ SinkConfig = AnytypeSinkConfig
 class Config(BaseModel):
     data_dir: Path = Path("/data")
     threshold_words: int = 10
+    # What ends up in the note body once a note has been condensed:
+    #   summary - the condensed note only (the raw transcript stays in the chat)
+    #   full    - the tidied transcript only
+    #   both    - condensed note, then the tidied transcript below it
+    # Notes below threshold_words are never condensed, so they always keep
+    # their own text regardless of this setting.
+    note_body: Literal["summary", "full", "both"] = "summary"
     max_attempts: int = 4
     retry_backoff_s: float = 20.0
     undo_history: int = 20

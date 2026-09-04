@@ -29,6 +29,12 @@ your vault or identity. Revoke it any time from the member list.
 called at all: the note text is its own title. A four-word reminder does not need
 an AI title.
 
+**The note is the condensed note.** By default the body holds only the condensed
+version, not the transcript underneath it -- rambling for a minute should not
+produce a note you still have to read twice. The raw audio and its transcript
+stay in the chat, which is where you would look for them anyway. Set
+`note_body: full` or `both` if you would rather keep the transcript.
+
 **Nothing gets lost.** Captures are written to a SQLite queue before any network
 call. Failures retry with backoff; after `max_attempts` the job is dead-lettered
 and the bot says so instead of failing silently. A crash mid-processing replays

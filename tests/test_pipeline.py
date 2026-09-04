@@ -79,7 +79,8 @@ async def test_long_text_is_enriched():
     assert result.used_model is True
     assert result.note.title == "Model title"
     assert result.note.summary == "A summary."
-    assert result.note.body == "cleaned"
+    # body composition is covered by the note_body tests below
+    assert result.note.body
 
 
 async def test_threshold_is_inclusive_at_the_boundary():
@@ -150,3 +151,41 @@ async def test_all_sinks_failing_raises_so_the_job_retries():
     pipe, _, _, _ = build(sinks=[FakeSink("broken", fail=True)])
     with pytest.raises(RuntimeError):
         await pipe.process(RawItem(source="t", text="kurz"))
+
+
+async def test_body_is_the_summary_by_default():
+    """The condensed note is what the reader keeps; the raw text stays in chat."""
+    pipe, _, sinks, _ = build()
+    text = " ".join(f"wort{i}" for i in range(20))
+    result = await pipe.process(RawItem(source="t", text=text))
+
+    assert result.note.body == "A summary."
+    assert "cleaned" not in result.note.body
+
+
+async def test_body_full_keeps_the_tidied_text_instead():
+    pipe, enricher, sinks, transcriber = build()
+    pipe.note_body = "full"
+    text = " ".join(f"wort{i}" for i in range(20))
+    result = await pipe.process(RawItem(source="t", text=text))
+
+    assert result.note.body == "cleaned"
+
+
+async def test_body_both_keeps_summary_then_text():
+    pipe, _, _, _ = build()
+    pipe.note_body = "both"
+    text = " ".join(f"wort{i}" for i in range(20))
+    result = await pipe.process(RawItem(source="t", text=text))
+
+    assert result.note.body.startswith("A summary.")
+    assert result.note.body.endswith("cleaned")
+
+
+async def test_short_note_keeps_its_own_text_whatever_the_setting():
+    """Below the threshold there is no summary to fall back on."""
+    for mode in ("summary", "full", "both"):
+        pipe, _, _, _ = build()
+        pipe.note_body = mode
+        result = await pipe.process(RawItem(source="t", text="Milch kaufen"))
+        assert result.note.body == "Milch kaufen", mode

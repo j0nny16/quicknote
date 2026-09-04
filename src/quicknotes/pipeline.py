@@ -31,11 +31,24 @@ class Pipeline:
         enricher,
         sinks: list,
         threshold_words: int = 10,
+        note_body: str = "summary",
     ) -> None:
         self.transcriber = transcriber
         self.enricher = enricher
         self.sinks = sinks
         self.threshold_words = threshold_words
+        self.note_body = note_body
+
+    def _compose_body(self, enrichment: Enrichment, text: str) -> str:
+        """What the reader actually gets. Falls back to the text whenever there
+        is no summary to show -- short notes never get one."""
+        tidied = (enrichment.cleaned_text or text).strip()
+        summary = (enrichment.summary or "").strip()
+        if not summary or self.note_body == "full":
+            return tidied
+        if self.note_body == "both":
+            return f"{summary}\n\n---\n\n{tidied}"
+        return summary
 
     async def process(self, item: RawItem) -> ProcessResult:
         text, lang, raw_transcript = await self._resolve_text(item)
@@ -55,7 +68,7 @@ class Pipeline:
 
         note = Note(
             title=enrichment.title,
-            body=(enrichment.cleaned_text or text).strip(),
+            body=self._compose_body(enrichment, text),
             summary=enrichment.summary,
             lang=lang,
             tags=enrichment.tags,

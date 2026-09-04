@@ -91,7 +91,9 @@ class AnytypeSink:
                 "emoji": self.icon_voice if note.from_voice else self.icon_text,
             },
         }
-        if note.summary:
+        # Anytype renders the description right under the title, so setting it
+        # to text the body already opens with just shows it twice.
+        if note.summary and note.summary.strip() != note.body.strip():
             payload["description"] = note.summary
         props = self._properties(note)
         if props:

@@ -7,6 +7,14 @@ data_dir: /data
 # called at all. Above it, Claude writes title + summary and tidies the text.
 threshold_words: 10
 
+# What lands in the note body once a note has been condensed:
+#   summary - the condensed note only. The raw transcript stays in the chat,
+#             which is where you would look for it anyway.
+#   full    - the tidied transcript only, no condensing.
+#   both    - condensed note, then the tidied transcript below a rule.
+# Notes under threshold_words are never condensed and always keep their own text.
+note_body: summary
+
 max_attempts: 4        # retries before a capture is dead-lettered
 retry_backoff_s: 20    # doubles each attempt
 undo_history: 20       # how many past notes /undo can reach back through
